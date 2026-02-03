@@ -15,8 +15,10 @@ pub struct Segment {
     file: File,
 }
 
+// next:
+// 1. Segment to take a generic type deciding which type it should be storing
+// 2. this type should be serializable for write, and deserializable for read
 impl Segment {
-    pub const SEGMENT_SIZE: u64 = 128;
     pub const FILE_EXTENSION: &str = "segment";
 
     /// # Arguments
@@ -90,10 +92,6 @@ impl Segment {
 
         bincode::deserialize::<Message>(&msg_bytes)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-    }
-
-    pub fn is_full(&self) -> bool {
-        self.write_position() >= Segment::SEGMENT_SIZE
     }
 }
 
