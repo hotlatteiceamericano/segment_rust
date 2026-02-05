@@ -10,7 +10,7 @@ use std::{
 use crate::storable::Storable;
 
 #[derive(Debug)]
-pub struct Segment<T: Storable> {
+pub struct Segment<T> {
     base_offset: u64,
     write_position: u64,
     file: File,
