@@ -17,11 +17,12 @@ pub struct Segment<T> {
     _marker: PhantomData<T>,
 }
 
+pub const FILE_EXTENSION: &str = "segment";
+
 // next:
 // 1. Segment to take a generic type deciding which type it should be storing
 // 2. this type should be serializable for write, and deserializable for read
 impl<T: Storable> Segment<T> {
-    pub const FILE_EXTENSION: &str = "segment";
     pub const LENGTH: u32 = 4;
 
     /// # Arguments
@@ -36,7 +37,7 @@ impl<T: Storable> Segment<T> {
 
         let file_path = parent_directory
             .join(format!("{:08}", base_offset))
-            .with_extension(Self::FILE_EXTENSION);
+            .with_extension(FILE_EXTENSION);
 
         let file = OpenOptions::new()
             .create(true)
