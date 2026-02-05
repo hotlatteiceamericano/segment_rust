@@ -2,7 +2,9 @@ use std::io;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+use crate::storable::Storable;
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Message {
     pub content: String,
 }
@@ -15,15 +17,17 @@ impl Message {
             content: String::from(content),
         }
     }
+}
 
-    pub fn content_length(&self) -> u32 {
+impl Storable for Message {
+    fn content_length(&self) -> u32 {
         bincode::serialize(self)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
             .unwrap()
             .len() as u32
     }
 
-    pub fn total_length(&self) -> u32 {
+    fn total_length(&self) -> u32 {
         self.content_length() + Self::MESSAGE_LENGTH
     }
 }

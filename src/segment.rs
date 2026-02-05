@@ -3,23 +3,26 @@ use anyhow::Context;
 use std::{
     fs::{self, File, OpenOptions},
     io::{self, Read, Seek, Write},
+    marker::PhantomData,
     path::Path,
 };
 
-use crate::message::Message;
+use crate::storable::Storable;
 
 #[derive(Debug)]
-pub struct Segment {
+pub struct Segment<T: Storable> {
     base_offset: u64,
     write_position: u64,
     file: File,
+    _marker: PhantomData<T>,
 }
 
 // next:
 // 1. Segment to take a generic type deciding which type it should be storing
 // 2. this type should be serializable for write, and deserializable for read
-impl Segment {
+impl<T: Storable> Segment<T> {
     pub const FILE_EXTENSION: &str = "segment";
+    pub const LENGTH: u32 = 4;
 
     /// # Arguments
     /// * parent_directory: the parent directory you are placing the segment file
@@ -33,7 +36,7 @@ impl Segment {
 
         let file_path = parent_directory
             .join(format!("{:08}", base_offset))
-            .with_extension(Segment::FILE_EXTENSION);
+            .with_extension(Self::FILE_EXTENSION);
 
         let file = OpenOptions::new()
             .create(true)
@@ -46,6 +49,7 @@ impl Segment {
             // todo: replace 0 with current length + 1
             write_position: 0,
             file,
+            _marker: PhantomData,
         })
     }
 
@@ -61,16 +65,16 @@ impl Segment {
     /// * `message` - the message being written to the segment
     /// # Returns
     /// new local write offset after written the given message
-    pub fn write(&mut self, message: &Message) -> io::Result<u64> {
-        let serialized_msg = bincode::serialize(message)
+    pub fn write(&mut self, record: &T) -> io::Result<u64> {
+        let serialized_msg = bincode::serialize(record)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
         self.file
-            .write_all(&message.content_length().to_be_bytes())?;
+            .write_all(&record.content_length().to_be_bytes())?;
         self.file.write_all(&serialized_msg)?;
         self.file.flush()?;
 
-        self.write_position += message.total_length() as u64;
+        self.write_position += record.total_length() as u64;
 
         Ok(self.write_position)
     }
@@ -80,17 +84,17 @@ impl Segment {
     /// it is expected for topic to find the local offset from a global offset
     /// # Returns
     /// message at the give offset
-    pub fn read(&mut self, offset: u64) -> io::Result<Message> {
+    pub fn read(&mut self, offset: u64) -> io::Result<T> {
         self.file.seek(io::SeekFrom::Start(offset))?;
 
-        let mut len_bytes = [0u8; Message::MESSAGE_LENGTH as usize];
+        let mut len_bytes = [0u8; Self::LENGTH as usize];
         self.file.read_exact(&mut len_bytes)?;
         let msg_len = u32::from_be_bytes(len_bytes);
 
         let mut msg_bytes = vec![0u8; msg_len as usize];
         self.file.read_exact(&mut msg_bytes)?;
 
-        bincode::deserialize::<Message>(&msg_bytes)
+        bincode::deserialize::<T>(&msg_bytes)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
     }
 }
@@ -98,6 +102,7 @@ impl Segment {
 #[cfg(test)]
 mod test {
 
+    use crate::message::Message;
     use std::fs;
     use std::path::Path;
     use std::path::PathBuf;
@@ -106,7 +111,6 @@ mod test {
     use rstest::fixture;
     use rstest::rstest;
 
-    use crate::segment::Message;
     use crate::segment::Segment;
 
     #[fixture]
@@ -127,7 +131,7 @@ mod test {
     #[rstest]
     fn test_write(random_parent_directory: PathBuf) {
         let mut segment = Segment::new(&random_parent_directory, 0).unwrap();
-        let message = &Message::new("hello world!");
+        let message = Message::new("hello world!");
 
         let latest_offset = segment.write(&message).unwrap();
 
