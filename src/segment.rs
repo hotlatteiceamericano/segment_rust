@@ -4,7 +4,8 @@ use std::{
     fs::{self, File, OpenOptions},
     io::{self, Read, Seek, Write},
     marker::PhantomData,
-    path::Path,
+    os::unix::fs,
+    path::{Path, PathBuf},
 };
 
 use crate::storable::Storable;
@@ -97,6 +98,24 @@ impl<T: Storable> Segment<T> {
 
         bincode::deserialize::<T>(&msg_bytes)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+    }
+}
+
+// need to test this from function
+// also test if setting write_position to be length +1 is correct or not
+impl<T> From<PathBuf> for Segment<T> {
+    fn from(path: PathBuf) -> Self {
+        let filename = path.file_name().unwrap();
+        let file = fs::File::open(&path).unwrap();
+
+        let len = file.metadata().unwrap().len();
+
+        Self {
+            base_offset: filename.to_str().unwrap().parse::<u64>().unwrap(),
+            file,
+            write_position: len + 1,
+            _marker: PhantomData,
+        }
     }
 }
 
