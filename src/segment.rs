@@ -4,7 +4,6 @@ use std::{
     fs::{self, File, OpenOptions},
     io::{self, Read, Seek, Write},
     marker::PhantomData,
-    os::unix::fs,
     path::{Path, PathBuf},
 };
 
