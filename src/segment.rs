@@ -14,6 +14,7 @@ pub struct Segment<T> {
     base_offset: u64,
     write_position: u64,
     file: File,
+    path: PathBuf,
     _marker: PhantomData<T>,
 }
 
@@ -43,13 +44,14 @@ impl<T: Storable> Segment<T> {
             .create(true)
             .read(true)
             .append(true)
-            .open(file_path)?;
+            .open(&file_path)?;
 
         Ok(Self {
             base_offset,
             // todo: replace 0 with current length + 1
             write_position: 0,
             file,
+            path: file_path,
             _marker: PhantomData,
         })
     }
@@ -60,6 +62,10 @@ impl<T: Storable> Segment<T> {
 
     pub fn write_position(&self) -> u64 {
         self.write_position
+    }
+
+    pub fn path(&self) -> &PathBuf {
+        &self.path
     }
 
     /// # Arguments
@@ -100,7 +106,7 @@ impl<T: Storable> Segment<T> {
     }
 }
 
-// need to test this from function
+// todo: need to test this from function
 // also test if setting write_position to be length +1 is correct or not
 impl<T> From<PathBuf> for Segment<T> {
     fn from(path: PathBuf) -> Self {
@@ -113,6 +119,7 @@ impl<T> From<PathBuf> for Segment<T> {
             base_offset: filename.to_str().unwrap().parse::<u64>().unwrap(),
             file,
             write_position: len + 1,
+            path,
             _marker: PhantomData,
         }
     }
