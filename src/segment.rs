@@ -20,9 +20,6 @@ pub struct Segment<T> {
 
 pub const FILE_EXTENSION: &str = "segment";
 
-// next:
-// 1. Segment to take a generic type deciding which type it should be storing
-// 2. this type should be serializable for write, and deserializable for read
 impl<T: Storable> Segment<T> {
     pub const LENGTH: u32 = 4;
 
@@ -69,16 +66,16 @@ impl<T: Storable> Segment<T> {
     }
 
     /// # Arguments
-    /// * `message` - the message being written to the segment
+    /// * `record` - the serializable record to be written
     /// # Returns
     /// new local write offset after written the given message
     pub fn write(&mut self, record: &T) -> io::Result<u64> {
-        let serialized_msg = bincode::serialize(record)
+        let serialized_record = bincode::serialize(record)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
         self.file
             .write_all(&record.content_length().to_be_bytes())?;
-        self.file.write_all(&serialized_msg)?;
+        self.file.write_all(&serialized_record)?;
         self.file.flush()?;
 
         self.write_position += record.total_length() as u64;
@@ -107,7 +104,7 @@ impl<T: Storable> Segment<T> {
 }
 
 // todo: need to test this from function
-// also test if setting write_position to be length +1 is correct or not
+// also test if setting write_position needs to be len or len + 1
 impl<T> From<PathBuf> for Segment<T> {
     fn from(path: PathBuf) -> Self {
         let filename = path.file_name().unwrap();
@@ -118,7 +115,7 @@ impl<T> From<PathBuf> for Segment<T> {
         Self {
             base_offset: filename.to_str().unwrap().parse::<u64>().unwrap(),
             file,
-            write_position: len + 1,
+            write_position: len,
             path,
             _marker: PhantomData,
         }
