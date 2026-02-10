@@ -107,7 +107,7 @@ impl<T: Storable> Segment<T> {
 // also test if setting write_position needs to be len or len + 1
 impl<T> From<PathBuf> for Segment<T> {
     fn from(path: PathBuf) -> Self {
-        let filename = path.file_name().unwrap();
+        let filename = path.file_stem().unwrap();
         let file = fs::File::open(&path).unwrap();
 
         let len = file.metadata().unwrap().len();
