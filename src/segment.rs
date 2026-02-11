@@ -69,13 +69,15 @@ impl<T: Storable> Segment<T> {
     /// * `record` - the serializable record to be written
     /// # Returns
     /// new local write offset after written the given message
-    pub fn write(&mut self, record: &T) -> io::Result<u64> {
-        let serialized_record = bincode::serialize(record)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    pub fn write(&mut self, record: &T) -> anyhow::Result<u64> {
+        let serialized_record = bincode::serialize(record).context("cannot serialize to binary")?;
 
         self.file
-            .write_all(&record.content_length().to_be_bytes())?;
-        self.file.write_all(&serialized_record)?;
+            .write_all(&record.content_length().to_be_bytes())
+            .context("cannot write binary length to file")?;
+        self.file
+            .write_all(&serialized_record)
+            .context("cannot write binary to file")?;
         self.file.flush()?;
 
         self.write_position += record.total_length() as u64;
@@ -88,18 +90,18 @@ impl<T: Storable> Segment<T> {
     /// it is expected for topic to find the local offset from a global offset
     /// # Returns
     /// message at the give offset
-    pub fn read(&mut self, offset: u64) -> io::Result<T> {
+    pub fn read(&mut self, offset: u64) -> anyhow::Result<T> {
         self.file.seek(io::SeekFrom::Start(offset))?;
 
         let mut len_bytes = [0u8; Self::LENGTH as usize];
         self.file.read_exact(&mut len_bytes)?;
-        let msg_len = u32::from_be_bytes(len_bytes);
+        let record_len = u32::from_be_bytes(len_bytes);
 
-        let mut msg_bytes = vec![0u8; msg_len as usize];
-        self.file.read_exact(&mut msg_bytes)?;
+        let mut record_bytes = vec![0u8; record_len as usize];
+        self.file.read_exact(&mut record_bytes)?;
 
-        bincode::deserialize::<T>(&msg_bytes)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+        bincode::deserialize::<T>(&record_bytes)
+            .context("cannot deserialize binary to concrete type")
     }
 }
 
