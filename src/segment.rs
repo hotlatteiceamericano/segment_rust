@@ -110,7 +110,12 @@ impl<T: Storable> Segment<T> {
 impl<T> From<PathBuf> for Segment<T> {
     fn from(path: PathBuf) -> Self {
         let filename = path.file_stem().unwrap();
-        let file = fs::File::open(&path).unwrap();
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .append(true)
+            .open(&path)
+            .unwrap();
 
         let len = file.metadata().unwrap().len();
 
