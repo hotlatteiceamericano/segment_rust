@@ -107,8 +107,8 @@ impl<T: Storable> Segment<T> {
 
 // todo: need to test this from function
 // also test if setting write_position needs to be len or len + 1
-impl<T> From<PathBuf> for Segment<T> {
-    fn from(path: PathBuf) -> Self {
+impl<T> From<&PathBuf> for Segment<T> {
+    fn from(path: &PathBuf) -> Self {
         let filename = path.file_stem().unwrap();
         let file = OpenOptions::new()
             .read(true)
@@ -123,7 +123,7 @@ impl<T> From<PathBuf> for Segment<T> {
             base_offset: filename.to_str().unwrap().parse::<u64>().unwrap(),
             file,
             write_position: len,
-            path,
+            path: path.clone(),
             _marker: PhantomData,
         }
     }
@@ -184,6 +184,11 @@ mod test {
         assert_eq!(message_read.content, "hello world!");
 
         remove_path(&random_parent_directory);
+    }
+
+    #[test]
+    fn test_from() {
+        todo!();
     }
 
     fn remove_path(path: &Path) {
