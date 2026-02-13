@@ -1,4 +1,4 @@
-use anyhow::Context;
+use anyhow::{Context, bail};
 
 use std::{
     fs::{self, File, OpenOptions},
@@ -37,6 +37,14 @@ impl<T: Storable> Segment<T> {
             .join(format!("{:08}", base_offset))
             .with_extension(FILE_EXTENSION);
 
+        if file_path.exists() && file_path.is_file() {
+            bail!(
+                "segment with parent directory: {} and base offset: {} already exists",
+                parent_directory.to_str().unwrap(),
+                base_offset
+            );
+        }
+
         let file = OpenOptions::new()
             .create(true)
             .read(true)
@@ -45,7 +53,6 @@ impl<T: Storable> Segment<T> {
 
         Ok(Self {
             base_offset,
-            // todo: replace 0 with current length + 1
             write_position: 0,
             file,
             path: file_path,
