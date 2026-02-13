@@ -165,11 +165,14 @@ mod test {
             .join(random_parent_dir)
     }
 
-    #[rstest]
-    fn test_write(random_parent_directory: PathBuf) {
-        let mut segment = Segment::new(&random_parent_directory, 0).unwrap();
-        let message = Message::new("hello world!");
+    #[fixture]
+    fn message() -> Message {
+        Message::new("hello world!")
+    }
 
+    #[rstest]
+    fn test_write(random_parent_directory: PathBuf, message: Message) {
+        let mut segment = Segment::new(&random_parent_directory, 0).unwrap();
         let latest_offset = segment.write(&message).unwrap();
 
         let serialized_msg = bincode::serialize(&message.content);
@@ -179,10 +182,8 @@ mod test {
     }
 
     #[rstest]
-    pub fn test_read(random_parent_directory: PathBuf) {
+    pub fn test_read(random_parent_directory: PathBuf, message: Message) {
         let mut segment = Segment::new(&random_parent_directory, 0).unwrap();
-
-        let message = Message::new("hello world!");
         segment.write(&message).unwrap();
 
         let message_read = segment
@@ -193,9 +194,27 @@ mod test {
         remove_path(&random_parent_directory);
     }
 
-    #[test]
-    fn test_from() {
-        todo!();
+    #[rstest]
+    fn test_from(random_parent_directory: PathBuf, message: Message) {
+        let mut segment = Segment::new(&random_parent_directory, 0).unwrap();
+        let second_msg_offset = segment.write(&message).unwrap();
+        let path = segment.path.clone();
+        let mut segment_from = Segment::<Message>::from(&path);
+
+        assert_eq!(segment_from.path, segment.path);
+        assert_eq!(segment_from.base_offset, segment.base_offset);
+        assert_eq!(segment_from.write_position, segment.write_position);
+        assert_eq!(
+            segment_from.file.metadata().unwrap().len(),
+            segment.file.metadata().unwrap().len()
+        );
+
+        segment_from.write(&message).unwrap();
+        let second_msg = segment_from.read(second_msg_offset).unwrap();
+
+        assert_eq!(second_msg, message);
+
+        remove_path(&random_parent_directory);
     }
 
     fn remove_path(path: &Path) {

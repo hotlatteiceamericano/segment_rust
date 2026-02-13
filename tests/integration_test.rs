@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod test {
-    use std::path::{Path, PathBuf};
+    use std::path::PathBuf;
 
     use rstest::{fixture, rstest};
     use segment_rust::{message::Message, segment::Segment};
-    use tempfile::{TempPath, tempdir, tempfile};
+    use tempfile::tempdir;
 
     #[fixture]
     fn temp_dir() -> PathBuf {
